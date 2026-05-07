@@ -1,0 +1,12 @@
+{
+  "name": "com.example.signed-upm",
+  "version": "1.0.0",
+  "displayName": "Signed UPM Example",
+  "description": "Minimal Unity package demonstrating Unity UPM code signing with GitHub Releases and OpenUPM.",
+  "unity": "6000.3",
+  "author": {
+    "name": "OpenUPM",
+    "url": "https://openupm.com"
+  },
+  "license": "MIT"
+}
