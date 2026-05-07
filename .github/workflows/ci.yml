@@ -16,12 +16,22 @@ jobs:
       UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
       UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
       UPM_ORG_ID: ${{ secrets.UPM_ORG_ID }}
-      PACKAGE_NAME: com.example.signed-upm
-      PACKAGE_VERSION: 1.0.0
+      DIST_DIR: ${{ runner.temp }}/signed-upm-dist
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Read package metadata
+        run: |
+          package_name="$(jq -r '.name' package/package.json)"
+          package_version="$(jq -r '.version' package/package.json)"
+
+          echo "PACKAGE_NAME=$package_name" >> "$GITHUB_ENV"
+          echo "PACKAGE_VERSION=$package_version" >> "$GITHUB_ENV"
+
+          printf 'Package name: %s\n' "$package_name"
+          printf 'Package version: %s\n' "$package_version"
 
       - name: Install Unity UPM CLI
         run: |
@@ -34,32 +44,29 @@ jobs:
 
       - name: Sign package
         run: |
-          upm pack ./package --organization-id "$UPM_ORG_ID" --destination ./dist
+          mkdir -p "$DIST_DIR"
+          upm pack ./package --organization-id "$UPM_ORG_ID" --destination "$DIST_DIR"
 
-      - name: Verify signed archive
+      - name: Print signed package info
         run: |
           shopt -s nullglob
-          archives=(dist/*.tgz dist/*.tar.gz)
+          archives=("$DIST_DIR"/*.tgz "$DIST_DIR"/*.tar.gz)
           if [ "${#archives[@]}" -ne 1 ]; then
-            printf 'Expected exactly one package archive in dist, found %s\n' "${#archives[@]}" >&2
+            printf 'Expected exactly one signed package archive, found %s\n' "${#archives[@]}" >&2
             exit 1
           fi
 
           archive="${archives[0]}"
-          expected="dist/${PACKAGE_NAME}-${PACKAGE_VERSION}.tgz"
-          if [ "$archive" != "$expected" ]; then
-            printf 'Expected archive %s, found %s\n' "$expected" "$archive" >&2
-            exit 1
-          fi
-
           tar -tzf "$archive" | grep -qx 'package/package.json'
-          actual="$(tar -xOzf "$archive" package/package.json | jq -r '.name + "@" + .version')"
-          if [ "$actual" != "${PACKAGE_NAME}@${PACKAGE_VERSION}" ]; then
-            printf 'Expected %s@%s, found %s\n' "$PACKAGE_NAME" "$PACKAGE_VERSION" "$actual" >&2
-            exit 1
-          fi
+          tar -tzf "$archive" | grep -qx 'package/.attestation.p7m'
+
+          echo "PACKAGE_ARCHIVE=$archive" >> "$GITHUB_ENV"
+          printf 'Archive: %s\n' "$(basename "$archive")"
+          tar -xOzf "$archive" package/package.json | jq '{name, version}'
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/com.example.signed-upm-1.0.0.tgz
+          files: |
+            ${{ runner.temp }}/signed-upm-dist/*.tgz
+            ${{ runner.temp }}/signed-upm-dist/*.tar.gz

@@ -54,6 +54,12 @@ contains `package/.attestation.p7m` for the package signature. The workflow
 also verifies that the archive contains `package/package.json` for
 `com.example.signed-upm@1.0.0`, then attaches the signed tarball to the release.
 
+The signed package is uploaded as a GitHub Release asset, not as a GitHub
+Actions workflow artifact. Workflow artifacts and logs have retention periods,
+but release assets remain attached to the release until the asset or release is
+deleted. Keep release assets available so OpenUPM can process older package
+versions later.
+
 ## OpenUPM
 
 To publish a signed GitHub Release asset through OpenUPM, submit package
