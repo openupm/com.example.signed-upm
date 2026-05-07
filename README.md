@@ -5,16 +5,19 @@ packed and signed in GitHub Actions, then published as a GitHub Release asset.
 It is intentionally small so package authors can copy the workflow into their
 own repositories without carrying unrelated project structure.
 
-Unity 6.3 checks digital signatures on tarball packages. The `upm pack`
-command creates a `.tgz` archive from the package folder and signs it with a
-Unity organization through service account credentials. The signed tarball can
-then be distributed directly, uploaded to a release, or submitted to a registry
-workflow that consumes release assets.
+Unity 6.3 provides the UPM CLI, a command-line tool for package operations such
+as packing and signing. See the
+[Unity UPM CLI documentation](https://docs.unity3d.com/6000.3/Documentation/Manual/upm-cli.html)
+for installation and command details.
+
+The `upm pack` command creates a `.tgz` archive from the package folder and
+signs it with a Unity organization through service account credentials. A
+signed UPM package contains `package/.attestation.p7m` inside the archive. The
+resulting `.tgz` file can be published to a registry such as OpenUPM.
 
 ## Package Layout
 
 - `package/package.json` is the Unity package manifest.
-- `package/package.json.meta` is the Unity meta file for the manifest.
 - `.github/workflows/ci.yml` signs the package only when a tag is pushed.
 
 The package has no runtime code. It exists only to demonstrate release
@@ -44,20 +47,26 @@ git tag 1.0.0
 git push origin main 1.0.0
 ```
 
-The workflow installs Unity UPM CLI, runs `upm pack ./package`, verifies that
-the archive contains `package/package.json` for `com.example.signed-upm@1.0.0`,
-and attaches the signed tarball to the matching GitHub Release.
+The workflow only runs for pushed git tags. For tag `1.0.0`, it creates a
+GitHub Release with the same tag name, installs Unity UPM CLI, and runs
+`upm pack ./package` to create a signed UPM `.tgz` file. The signed archive
+contains `package/.attestation.p7m` for the package signature. The workflow
+also verifies that the archive contains `package/package.json` for
+`com.example.signed-upm@1.0.0`, then attaches the signed tarball to the release.
 
 ## OpenUPM
 
-To publish a signed GitHub Release asset through OpenUPM, submit the package
-metadata with `trackingMode: githubRelease` and set `githubReleaseAssetName` to
-the signed archive filename, for example:
+To publish a signed GitHub Release asset through OpenUPM, submit package
+metadata with `trackingMode: githubRelease`:
 
 ```yaml
 trackingMode: githubRelease
-githubReleaseAssetName: com.example.signed-upm-1.0.0.tgz
 ```
 
-OpenUPM will download the public release asset instead of packing from the git
+When a release has only one `.tgz` or `.tar.gz` asset, OpenUPM selects it
+automatically. Set `githubReleaseAssetName` only when a release has multiple
+assets. The value can be either the exact signed package filename or a stable
+filename prefix when the filename contains the version string.
+
+OpenUPM downloads the public release asset instead of packing from the git
 checkout.
