@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Read package metadata
         run: |
@@ -65,7 +65,7 @@ jobs:
           tar -xOzf "$archive" package/package.json | jq '{name, version}'
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             /tmp/signed-upm-dist/*.tgz
